@@ -1,209 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>cyclus 25 7</title>
-  <link rel="icon" href="favicon.ico" type="image/x-icon">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cyclus · 25 Jul 2025</title>
+  <link rel="icon" href="favicon.ico" type="image/x-icon" />
+  
   <!--
-    👉 Replace YOUR_IMAGE.jpg with your chosen background image.
-    👉 Replace SHEET_ENDPOINT with your Apps Script Web App URL.
+    👉 Replace YOUR_IMAGE.jpg with the background you like.
+    👉 Replace SHEET_ENDPOINT with your Apps-Script web-app URL.
   -->
+
   <style>
-    /* Reset and base */
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; font-family: system-ui, sans-serif; }
-
-    /* Full-screen background */
-    body {
-      background: url('YOUR_IMAGE.jpg') center/cover no-repeat;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #222;
+    /* ===== Base & layout ===== */
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;font-family:system-ui,sans-serif}
+    body{
+      background:url("YOUR_IMAGE.jpg") center/cover no-repeat;
+      display:flex;align-items:center;justify-content:center;color:#222;
     }
 
-    /* Counter top-right */
-    #counter {
-      position: fixed;
-      top: 16px;
-      right: 16px;
-      font-size: 1.5rem;
-      background: rgba(255,255,255,0.8);
-      padding: 4px 8px;
-      border-radius: 4px;
+    /* ===== Loader & submit overlays ===== */
+    #loader,#submitOverlay{
+      position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+      background:rgba(255,255,255,.85);z-index:999;
+    }
+    #submitOverlay{display:none}
+
+    /* ===== Spinner variants ===== */
+    .spinner-ring{width:48px;height:48px;border:6px solid #ccc;border-top-color:#000;border-radius:50%;animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .spinner-dots{width:48px;display:flex;justify-content:space-between}
+    .spinner-dots div{width:10px;height:10px;border-radius:50%;background:#000;animation:dots .6s infinite ease-in-out}
+    .spinner-dots div:nth-child(2){animation-delay:.2s}
+    .spinner-dots div:nth-child(3){animation-delay:.4s}
+    @keyframes dots{0%,20%{transform:translateY(0)}50%{transform:translateY(-8px)}100%{transform:translateY(0)}}
+
+    .spinner-bars{display:flex;align-items:flex-end;height:40px}
+    .spinner-bars div{width:6px;height:20px;margin:0 2px;background:#000;animation:bars 1s infinite ease-in-out}
+    .spinner-bars div:nth-child(1){animation-delay:-.4s}
+    .spinner-bars div:nth-child(2){animation-delay:-.2s}
+    .spinner-bars div:nth-child(4){animation-delay:-.2s}
+    .spinner-bars div:nth-child(5){animation-delay:-.4s}
+    @keyframes bars{0%,40%,100%{transform:scaleY(.3)}20%{transform:scaleY(1)}}
+
+    /* ===== Counter & name-wall ===== */
+    #counter{
+      position:fixed;top:16px;right:16px;font-size:1.5rem;background:rgba(255,255,255,.8);
+      padding:4px 8px;border-radius:4px;opacity:0;transition:opacity .4s;
+    }
+    #counter.visible{opacity:1}
+    #nameWall{
+      position:fixed;top:16px;left:16px;font-size:10px;line-height:12px;color:#444;
+      white-space:pre-wrap;word-break:break-word;max-width:calc(100% - 32px);
     }
 
-    /* Name wall top-left */
-    #nameWall {
-      position: fixed;
-      top: 16px;
-      left: 16px;
-      font-size: 10px;
-      line-height: 12px;
-      color: #444;
-      white-space: pre-wrap;
-      word-break: break-word;
-      max-width: calc(100% - 32px);
+    /* ===== Form ===== */
+    form{
+      position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      width:90%;max-width:360px;display:flex;flex-direction:column;gap:12px;
+      background:transparent;border:none;z-index:10;
     }
+    form input,form button{
+      width:100%;padding:12px;font-size:1rem;border:1px solid #000;border-radius:4px;
+    }
+    form input{background:rgba(255,255,255,.5);color:#000}
+    form button{
+      -webkit-appearance:none;appearance:none;font-weight:600;cursor:pointer;
+      background:rgba(255,255,255,.8);color:#000;transition:opacity .2s;
+    }
+    form button:active,form button:focus{opacity:.6;outline:none}
 
-    /* Centered form */
-    /* Center the form both vertically and horizontally */
-    /* Make the form container transparent */
-   /* Center the form */
-    form {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: transparent !important;
-      border: none;
-      width: 90%;
-      max-width: 360px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    
-    /* Make inputs full-width and lightly outlined */
-    form input[type="text"],
-    form input[type="tel"] {
-      width: 100%;
-      padding: 12px;
-      font-size: 1rem;
-      border: 1px solid #000;
-      border-radius: 4px;
-      background: rgba(255,255,255,0.5);
-      color: #000;
-    }
-    
-    /* Ghost-style button with slight white fill */
-    form button {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 100%;
-      padding: 12px;
-      font-size: 1.1rem;
-      font-weight: 600;
-      color: #000;
-      background: rgba(255,255,255,0.8); /* slight white fill */
-      border: 1px solid #000;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: opacity 0.2s;
-    }
-    
-    /* Tap feedback */
-    form button:active,
-    form button:focus {
-      opacity: 0.6;
-      outline: none;
-    }
-
-
-
+    /* Pulse while waiting */
+    @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}
+    form.pulsing{animation:pulse .8s ease-in-out infinite}
   </style>
 </head>
 <body>
-  <!-- Counter -->
-  <div id="counter">0</div>
+  <!-- Loader shown until attendee list arrives -->
+  <div id="loader"></div>
+  <!-- Overlay shown after submit until calendar prompt -->
+  <div id="submitOverlay"></div>
 
-  <!-- Scrolling names -->
+  <!-- Counter & names -->
+  <div id="counter">0</div>
   <div id="nameWall"></div>
 
-  <!-- Centered attendance form -->
+  <!-- Attendance form -->
   <form id="attendForm" autocomplete="off">
-    <input type="text" name="name" placeholder="Your name (optional)">
-    <input type="tel" name="phone" placeholder="Phone (optional)">
+    <input type="text" name="name" placeholder="Your name (optional)" />
+    <input type="tel" name="phone" placeholder="Phone (optional)" />
     <button type="submit">I attend</button>
   </form>
 
   <script>
+    /* ========= CONFIG ========= */
     const SHEET_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxWHCq6yHcqtt4TEeSXnxkjXtxdD-nakrSoSIe-nBwb8ugojQNYJuN98o8z3vacac0G/exec';
 
-     // JSONP loader to avoid CORS issues
-    function loadJSONP(params) {
-      const callbackName = 'cb' + Date.now() + Math.random().toString().slice(2);
-      return new Promise((resolve, reject) => {
-        window[callbackName] = data => {
-          delete window[callbackName];
-          script.remove();
-          resolve(data);
-        };
-        const script = document.createElement('script');
-        script.src = SHEET_ENDPOINT + '?' + new URLSearchParams({...params, callback: callbackName});
-        script.onerror = () => reject(new Error('JSONP load error'));
+    /* ========= Utility: JSONP ========= */
+    function loadJSONP(params){
+      const cb='cb'+Date.now()+Math.random().toString().slice(2);
+      return new Promise((res,rej)=>{
+        window[cb]=d=>{delete window[cb];script.remove();res(d)};
+        const script=document.createElement('script');
+        script.src=SHEET_ENDPOINT+'?'+new URLSearchParams({...params,callback:cb});
+        script.onerror=()=>rej(new Error('JSONP load error'));
         document.body.appendChild(script);
       });
     }
 
-    async function fetchNames() {
-      const list = await loadJSONP({action: 'read'});
-      render(list);
+    /* ========= Fancy spinners ========= */
+    function createRing(parent){const d=document.createElement('div');d.className='spinner-ring';parent.appendChild(d);}  
+    function createDots(parent){const wrap=document.createElement('div');wrap.className='spinner-dots';for(let i=0;i<3;i++)wrap.appendChild(document.createElement('div'));parent.appendChild(wrap);}  
+    function createBars(parent){const wrap=document.createElement('div');wrap.className='spinner-bars';for(let i=0;i<5;i++)wrap.appendChild(document.createElement('div'));parent.appendChild(wrap);}  
+    const spinnerFns=[createRing,createDots,createBars];
+    function putRandomSpinner(el){el.innerHTML='';spinnerFns[Math.floor(Math.random()*spinnerFns.length)](el);}
+
+    /* ========= Initial loader ========= */
+    const loaderEl=document.getElementById('loader');
+    putRandomSpinner(loaderEl);
+
+    /* ========= Render helpers ========= */
+    const counterEl=document.getElementById('counter');
+    const wallEl=document.getElementById('nameWall');
+
+    function render(list){
+      // de-duplicate names (case-insensitive)
+      const seen=new Set();
+      const unique=list.filter(o=>{const n=(o.name||'Anonymous').trim().toLowerCase();if(seen.has(n))return false;seen.add(n);return true;});
+      wallEl.textContent=unique.map(o=>o.name||'Anonymous').join('\u00a0');
+      counterEl.textContent=unique.length;
+      counterEl.classList.add('visible');
     }
 
-    async function writeName(name, phone) {
-      const list = await loadJSONP({action: 'write', name, phone});
-      render(list);
-    }
+    /* ========= Read + write ========= */
+    async function fetchNames(){
+      try{const list=await loadJSONP({action:'read'});render(list);}finally{loaderEl.style.display='none';}}
+    async function writeName(name,phone){const list=await loadJSONP({action:'write',name,phone});render(list);return list;}
 
+    /* ========= Kick-off ========= */
+    fetchNames();
 
-    document.getElementById('attendForm').addEventListener('submit', async e => {
+    /* ========= Form submit ========= */
+    const form=document.getElementById('attendForm');
+    const submitOverlay=document.getElementById('submitOverlay');
+
+    form.addEventListener('submit',async e=>{
       e.preventDefault();
-      const fd    = new FormData(e.target);
-      const name  = fd.get('name').trim();
-      const phone = fd.get('phone').trim();
-      await writeName(name, phone);
-  
-      if (confirm("Would you like to add this event to your calendar?")) {
-        // UTC times for CEST 25 Jul 2025 20:00 → 26 Jul 2025 06:00
-        const dtStartUTC = '20250725T180000Z';
-        const dtEndUTC   = '20250726T040000Z';
-  
-        const icsLines = [
-          'BEGIN:VCALENDAR',
-          'VERSION:2.0',
-          'PRODID:-//YourDomain//AttendanceEvent//EN',
-          'BEGIN:VEVENT',
+      const fd=new FormData(form);
+      const name=(fd.get('name')||'').trim();
+      const phone=(fd.get('phone')||'').trim();
+
+      form.classList.add('pulsing');
+      putRandomSpinner(submitOverlay);
+      submitOverlay.style.display='flex';
+
+      await writeName(name,phone); // wait for Sheets write
+
+      form.classList.remove('pulsing');
+      submitOverlay.style.display='none';
+
+      /* ---- Calendar prompt ---- */
+      if(confirm('Add “Cyclus” to your calendar?')){
+        const dtStart='20250725T180000Z';
+        const dtEnd  ='20250726T040000Z';
+        const ics=[
+          'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//YourDomain//AttendanceEvent//EN','BEGIN:VEVENT',
           `UID:${Date.now()}@yourdomain.com`,
           `DTSTAMP:${new Date().toISOString().replace(/[-:.]/g,'').slice(0,15)}Z`,
-          `DTSTART:${dtStartUTC}`,
-          `DTEND:${dtEndUTC}`,
-          'SUMMARY:Cyclus',
-          'LOCATION:JH Tongeluk Ganshoren',
-          'DESCRIPTION:Thanks for RSVPing to Cyclus!',
-          'END:VEVENT',
-          'END:VCALENDAR'
-        ];
-  
-        const blob = new Blob([icsLines.join('\r\n')], { type: 'text/calendar' });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href     = url;
-        a.download = 'cyclus-event.ics';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+          `DTSTART:${dtStart}`,`DTEND:${dtEnd}`,
+          'SUMMARY:Cyclus','LOCATION:JH Tongeluk Ganshoren','DESCRIPTION:Thanks for RSVPing to Cyclus!',
+          'END:VEVENT','END:VCALENDAR'
+        ].join('\r\n');
+        const blob=new Blob([ics],{type:'text/calendar'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');a.href=url;a.download='cyclus-event.ics';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
       }
-  
-      e.target.reset();
+
+      form.reset();
     });
-
-
-    function render(list) {
-      document.getElementById('counter').textContent = list.length;
-      document.getElementById('nameWall').textContent = list.map(o => o.name || 'Anonymous').join('\u00a0');
-    }
-
-    document.getElementById('attendForm').addEventListener('submit', e => {
-      e.preventDefault();
-      const fd = new FormData(e.target);
-      writeName(fd.get('name').trim(), fd.get('phone').trim());
-      e.target.reset();
-    });
-
-    fetchNames();
   </script>
 </body>
 </html>
