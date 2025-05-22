@@ -5,30 +5,80 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Attendance Page</title>
   <!--
-    👉 Replace YOUR_IMAGE.jpg with your banner image in the repo.
+    👉 Replace YOUR_IMAGE.jpg with your chosen background image.
     👉 Replace SHEET_ENDPOINT with your Apps Script Web App URL.
   -->
   <style>
-    *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f2f2f2;color:#222;display:flex;flex-direction:column;align-items:center}
-    .hero-wrapper{position:relative;width:100%;max-width:1000px}
-    .hero-wrapper img{width:100%;max-height:60vh;object-fit:cover;display:block}
-    #counter{position:absolute;top:12px;right:16px;padding:4px 10px;font-size:1.6rem;font-weight:600;background:#ffffffcc;border-radius:8px;backdrop-filter:blur(6px)}
-    #nameWall{position:absolute;top:12px;left:16px;width:calc(100% - 32px);font-size:10px;line-height:12px;color:#444;pointer-events:none;white-space:pre-wrap;word-break:break-word}
-    form{width:100%;max-width:420px;margin:32px auto;padding:16px;background:#fff;border-radius:12px;box-shadow:0 4px 10px #0001;display:flex;flex-direction:column;gap:12px}
-    form input{padding:10px;border:1px solid #ccc;border-radius:8px;font-size:1rem;width:100%}
-    form button{padding:12px;border:none;border-radius:8px;font-size:1rem;font-weight:600;background:#007bff;color:#fff;cursor:pointer;transition:background .2s}
-    form button:hover{background:#0366d6}
-    @media(max-width:480px){#counter{font-size:1.3rem}}
+    /* Reset and base */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: system-ui, sans-serif; }
+
+    /* Full-screen background */
+    body {
+      background: url('YOUR_IMAGE.jpg') center/cover no-repeat;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #222;
+    }
+
+    /* Counter top-right */
+    #counter {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      font-size: 1.5rem;
+      background: rgba(255,255,255,0.8);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    /* Name wall top-left */
+    #nameWall {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      font-size: 10px;
+      line-height: 12px;
+      color: #444;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-width: calc(100% - 32px);
+    }
+
+    /* Centered form */
+    form {
+      width: 90%;
+      max-width: 360px;
+      background: rgba(255,255,255,0.9);
+      padding: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    form input,
+    form button {
+      font-size: 1rem;
+      padding: 8px;
+      border: 1px solid #888;
+      border-radius: 4px;
+    }
+    form button {
+      background: #fff;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <div class="hero-wrapper">
-    <img src="YOUR_IMAGE.jpg" alt="Event banner">
-    <div id="counter">0</div>
-    <div id="nameWall"></div>
-  </div>
+  <!-- Counter -->
+  <div id="counter">0</div>
 
+  <!-- Scrolling names -->
+  <div id="nameWall"></div>
+
+  <!-- Centered attendance form -->
   <form id="attendForm" autocomplete="off">
     <input type="text" name="name" placeholder="Your name (optional)">
     <input type="tel" name="phone" placeholder="Phone (optional)">
@@ -36,76 +86,37 @@
   </form>
 
   <script>
-  const SHEET_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxWHCq6yHcqtt4TEeSXnxkjXtxdD-nakrSoSIe-nBwb8ugojQNYJuN98o8z3vacac0G/exec';
+    const SHEET_ENDPOINT = 'https://script.google.com/macros/s/XXXXXXXXXXXXXXXXXXXXXXXX/exec';
 
-  // JSONP loader
-  function loadJSONP(params) {
-    const cbName = 'jsonp_cb_' + Date.now() + Math.random().toString().slice(2);
-    return new Promise((resolve, reject) => {
-      window[cbName] = data => {
-        delete window[cbName];
-        document.head.removeChild(script);
-        resolve(data);
-      };
-      const url = SHEET_ENDPOINT + '?' + new URLSearchParams({...params, callback: cbName});
-      const script = document.createElement('script');
-      script.src = url;
-      script.onerror = () => reject(new Error('JSONP load error'));
-      document.head.appendChild(script);
-    });
-  }
-
-  function renderNames(list) {
-    document.getElementById('counter').textContent = list.length;
-    document.getElementById('nameWall').textContent = list.map(o => o.name || 'Anonymous').join('\u00a0');
-  }
-
-  async function fetchNames() {
-    const data = await loadJSONP({action: 'read'});
-    renderNames(data);
-  }
-
-  async function writeName(name, phone) {
-    const data = await loadJSONP({action: 'write', name, phone});
-    renderNames(data);
-  }
-
-  document.getElementById('attendForm').addEventListener('submit', e => {
-    e.preventDefault();
-    const fd = new FormData(e.target);
-    writeName(fd.get('name').trim(), fd.get('phone').trim());
-    e.target.reset();
-  });
-
-  fetchNames();
-  </script>
-
-  <!--
-  APPS SCRIPT BACKEND (V8 runtime, JSONP-enabled)
-
-  const SHEET_ID   = 'YOUR_SHEET_ID';
-  const SHEET_NAME = 'Sheet1';
-
-  function sheet() {
-    return SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
-  }
-
-  function outputJSONP(data, callback) {
-    return ContentService
-      .createTextOutput(callback + '(' + JSON.stringify(data) + ')')
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
-  }
-
-  function doGet(e) {
-    const sh = sheet();
-    if (e.parameter.action === 'write') {
-      sh.appendRow([e.parameter.name || '', e.parameter.phone || '', new Date()]);
+    function addQs(url, params) {
+      return url + '?' + new URLSearchParams(params);
     }
-    const rows = sh.getDataRange().getValues().slice(1)
-                    .map(r => ({name:r[0], phone:r[1]}));
-    const cb = e.parameter.callback || 'renderNames';
-    return outputJSONP(rows, cb);
-  }
-  -->
+
+    async function fetchNames() {
+      const res = await fetch(addQs(SHEET_ENDPOINT, { action: 'read' }));
+      const list = await res.json();
+      render(list);
+    }
+
+    async function writeName(name, phone) {
+      const res = await fetch(addQs(SHEET_ENDPOINT, { action: 'write', name, phone }));
+      const list = await res.json();
+      render(list);
+    }
+
+    function render(list) {
+      document.getElementById('counter').textContent = list.length;
+      document.getElementById('nameWall').textContent = list.map(o => o.name || 'Anonymous').join('\u00a0');
+    }
+
+    document.getElementById('attendForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      writeName(fd.get('name').trim(), fd.get('phone').trim());
+      e.target.reset();
+    });
+
+    fetchNames();
+  </script>
 </body>
 </html>
