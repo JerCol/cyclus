@@ -157,7 +157,7 @@
           `UID:${Date.now()}@cyclus-rsvp`,
           `DTSTAMP:${new Date().toISOString().replace(/[-:.]/g,'').slice(0,15)}Z`,
           `DTSTART:${dtS}`,`DTEND:${dtE}`,'SUMMARY:Cyclus','LOCATION:JH Tongeluk Ganshoren',
-          'DESCRIPTION:Thanks for RSVPing to Cyclus!','END:VEVENT','END:VCALENDAR'
+          'DESCRIPTION:stay tuned -> www.cyclus-bxl.be','END:VEVENT','END:VCALENDAR'
         ].join('\r\n');
         const blob=new Blob([ics],{type:'text/calendar'});const url=URL.createObjectURL(blob);
         const a=document.createElement('a');a.href=url;a.download='cyclus-event.ics';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
