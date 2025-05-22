@@ -5,22 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Attendance Page</title>
   <!--
-    👉 Replace YOUR_IMAGE.jpg with the banner image you commit alongside this file.
-    👉 Replace SHEET_ENDPOINT below with the URL of your *new* Google Apps Script Web App (see backend block).
+    👉 Replace YOUR_IMAGE.jpg with your banner image in the repo.
+    👉 Replace SHEET_ENDPOINT with your Apps Script Web App URL.
   -->
   <style>
     *{box-sizing:border-box}
     body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f2f2f2;color:#222;display:flex;flex-direction:column;align-items:center}
     .hero-wrapper{position:relative;width:100%;max-width:1000px}
     .hero-wrapper img{width:100%;max-height:60vh;object-fit:cover;display:block}
-
-    /* Counter */
     #counter{position:absolute;top:12px;right:16px;padding:4px 10px;font-size:1.6rem;font-weight:600;background:#ffffffcc;border-radius:8px;backdrop-filter:blur(6px)}
-
-    /* Name wall */
     #nameWall{position:absolute;top:12px;left:16px;width:calc(100% - 32px);font-size:10px;line-height:12px;color:#444;pointer-events:none;white-space:pre-wrap;word-break:break-word}
-
-    /* Form */
     form{width:100%;max-width:420px;margin:32px auto;padding:16px;background:#fff;border-radius:12px;box-shadow:0 4px 10px #0001;display:flex;flex-direction:column;gap:12px}
     form input{padding:10px;border:1px solid #ccc;border-radius:8px;font-size:1rem;width:100%}
     form button{padding:12px;border:none;border-radius:8px;font-size:1rem;font-weight:600;background:#007bff;color:#fff;cursor:pointer;transition:background .2s}
@@ -30,122 +24,80 @@
 </head>
 <body>
   <div class="hero-wrapper">
-    <!-- Your picture -->
-    <img src="YOUR_IMAGE.jpg" alt="Event banner" />
-
-    <!-- Counter -->
+    <img src="YOUR_IMAGE.jpg" alt="Event banner">
     <div id="counter">0</div>
-
-    <!-- Scrolling list of names -->
     <div id="nameWall"></div>
   </div>
 
-  <!-- Attendance form -->
   <form id="attendForm" autocomplete="off">
-    <input type="text" name="name" placeholder="Your name (optional)" />
-    <input type="tel" name="phone" placeholder="Phone (optional)" />
+    <input type="text" name="name" placeholder="Your name (optional)">
+    <input type="tel" name="phone" placeholder="Phone (optional)">
     <button type="submit">I attend</button>
   </form>
 
   <script>
-  // === CONFIGURATION ===
-  const SHEET_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxWHCq6yHcqtt4TEeSXnxkjXtxdD-nakrSoSIe-nBwb8ugojQNYJuN98o8z3vacac0G/exec'; // ← paste deployment URL
+  const SHEET_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxWHCq6yHcqtt4TEeSXnxkjXtxdD-nakrSoSIe-nBwb8ugojQNYJuN98o8z3vacac0G/exec';
 
-  // === CORS‑friendly fetch helpers ===
-  function addQs(url, obj){
-    const qs = new URLSearchParams(obj).toString();
-    return url + (url.includes('?') ? '&' : '?') + qs;
+  function addQs(url, params) {
+    return url + '?' + new URLSearchParams(params);
   }
 
-  async function fetchNames(){
-    try{
-      const res = await fetch(addQs(SHEET_ENDPOINT,{action:'read'}));
-      const list = await res.json();
-      renderNames(list);
-    }catch(err){ console.error('Fetch error', err); }
+  async function fetchNames() {
+    const res = await fetch(addQs(SHEET_ENDPOINT, {action: 'read'}));
+    const list = await res.json();
+    renderNames(list);
   }
 
-  function renderNames(list){
+  function renderNames(list) {
     document.getElementById('counter').textContent = list.length;
-    const namesString = list.map(o => (o.name || 'Anonymous')).join('\u00a0');
-    document.getElementById('nameWall').textContent = namesString;
+    document.getElementById('nameWall').textContent = list.map(o => o.name || 'Anonymous').join('\u00a0');
   }
 
-  async function writeName(payload){
-    const res = await fetch(SHEET_ENDPOINT, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify(payload)
-    });
+  async function writeName(name, phone) {
+    const res = await fetch(addQs(SHEET_ENDPOINT, {action: 'write', name, phone}));
     return res.json();
   }
 
   document.getElementById('attendForm').addEventListener('submit', async e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const payload = {action:'write', name:fd.get('name').trim(), phone:fd.get('phone').trim()};
-    try{
-      const updated = await writeName(payload);
-      renderNames(updated);
-      e.target.reset();
-    }catch(err){
-      alert('Sorry, network error.');
-      console.error(err);
-    }
+    const name = fd.get('name').trim();
+    const phone = fd.get('phone').trim();
+    const updated = await writeName(name, phone);
+    renderNames(updated);
+    e.target.reset();
   });
 
   fetchNames();
   </script>
 
   <!--
-  ===================================================
-  🛠  GOOGLE APPS SCRIPT BACKEND  (CORS‑ENABLED)  🛠
-  ===================================================
+  APPS SCRIPT BACKEND (V8 runtime, GET-only to avoid preflight)
 
-  // ‑‑‑ Paste the block below into Apps Script (Extensions ▶ Apps Script) ‑‑‑
+  const SHEET_ID   = 'YOUR_SHEET_ID';
+  const SHEET_NAME = 'Sheet1';
 
-  const SHEET_ID   = 'YOUR_SHEET_ID';   // ← replace
-  const SHEET_NAME = 'Sheet1';          // or whatever name you use
-
-  function _sheet(){
-    return SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
+  function sheet() {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    return ss.getSheetByName(SHEET_NAME);
   }
 
-  function _withCors(out){
-    return out
-      .setHeader('Access-Control-Allow-Origin', '*')
-      .setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-      .setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  function withCors(out) {
+    return out.setHeader('Access-Control-Allow-Origin','*');
   }
 
-  // Handle preflight (OPTIONS)
-  function doOptions(){
-    return _withCors(ContentService.createTextOutput(''));
+  function doGet(e) {
+    const sh = sheet();
+    if (e.parameter.action === 'write') {
+      sh.appendRow([e.parameter.name || '', e.parameter.phone || '', new Date()]);
+    }
+    const data = sh.getDataRange().getValues().slice(1)
+                  .map(r => ({name: r[0], phone: r[1]}));
+    return withCors(
+      ContentService.createTextOutput(JSON.stringify(data))
+                    .setMimeType(ContentService.MimeType.JSON)
+    );
   }
-
-  function doGet(){
-    const rows = _sheet().getDataRange().getValues();
-    const data = rows.slice(1).map(r => ({ name:r[0], phone:r[1], timestamp:r[2] }));
-    return _withCors(ContentService.createTextOutput(JSON.stringify(data))
-                     .setMimeType(ContentService.MimeType.JSON));
-  }
-
-  function doPost(e){
-    const body = JSON.parse(e.postData.contents || '{}');
-    _sheet().appendRow([body.name || '', body.phone || '', new Date()]);
-    return doGet(); // respond with fresh list (CORS headers included)
-  }
-
-  // ‑‑‑ Deploy ▶ New Deployment ▶ Web App
-  //     • Execute as: Me (or sheet owner)
-  //     • Who has access: Anyone
-  //   Copy the URL → put it in SHEET_ENDPOINT above.
-  //   ✅ Default quotas: ≈20k calls/day & 90 min exec time/day (free).
-
-  ===================================================
-  If you anticipate >20k API calls/day, switch to a free‑tier DB such as
-  Supabase or Firebase.  Both have open CORS by default.
-  ===================================================
   -->
 </body>
 </html>
