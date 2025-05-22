@@ -70,6 +70,35 @@
       background: #fff;
       cursor: pointer;
     }
+    /* Override iOS default button appearance */
+    form button {
+      -webkit-appearance: none;
+      appearance: none;
+      background-color: rgba(0, 123, 255, 0.9); /* semi-opaque blue */
+      color: #fff;                                /* white text */
+      border: none;
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    
+    /* Tappable feedback */
+    form button:active,
+    form button:focus {
+      opacity: 0.8;
+      outline: none;
+    }
+    
+    /* Ensure full-width tap target on small screens */
+    @media (max-width: 480px) {
+      form button {
+        width: 100%;
+      }
+    }
+
   </style>
 </head>
 <body>
