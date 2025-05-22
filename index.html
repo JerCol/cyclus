@@ -38,14 +38,21 @@
   <script>
   const SHEET_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxWHCq6yHcqtt4TEeSXnxkjXtxdD-nakrSoSIe-nBwb8ugojQNYJuN98o8z3vacac0G/exec';
 
-  function addQs(url, params) {
-    return url + '?' + new URLSearchParams(params);
-  }
-
-  async function fetchNames() {
-    const res = await fetch(addQs(SHEET_ENDPOINT, {action: 'read'}));
-    const list = await res.json();
-    renderNames(list);
+  // JSONP loader
+  function loadJSONP(params) {
+    const cbName = 'jsonp_cb_' + Date.now() + Math.random().toString().slice(2);
+    return new Promise((resolve, reject) => {
+      window[cbName] = data => {
+        delete window[cbName];
+        document.head.removeChild(script);
+        resolve(data);
+      };
+      const url = SHEET_ENDPOINT + '?' + new URLSearchParams({...params, callback: cbName});
+      const script = document.createElement('script');
+      script.src = url;
+      script.onerror = () => reject(new Error('JSONP load error'));
+      document.head.appendChild(script);
+    });
   }
 
   function renderNames(list) {
@@ -53,18 +60,20 @@
     document.getElementById('nameWall').textContent = list.map(o => o.name || 'Anonymous').join('\u00a0');
   }
 
-  async function writeName(name, phone) {
-    const res = await fetch(addQs(SHEET_ENDPOINT, {action: 'write', name, phone}));
-    return res.json();
+  async function fetchNames() {
+    const data = await loadJSONP({action: 'read'});
+    renderNames(data);
   }
 
-  document.getElementById('attendForm').addEventListener('submit', async e => {
+  async function writeName(name, phone) {
+    const data = await loadJSONP({action: 'write', name, phone});
+    renderNames(data);
+  }
+
+  document.getElementById('attendForm').addEventListener('submit', e => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const name = fd.get('name').trim();
-    const phone = fd.get('phone').trim();
-    const updated = await writeName(name, phone);
-    renderNames(updated);
+    writeName(fd.get('name').trim(), fd.get('phone').trim());
     e.target.reset();
   });
 
@@ -72,18 +81,19 @@
   </script>
 
   <!--
-  APPS SCRIPT BACKEND (V8 runtime, GET-only to avoid preflight)
+  APPS SCRIPT BACKEND (V8 runtime, JSONP-enabled)
 
   const SHEET_ID   = 'YOUR_SHEET_ID';
   const SHEET_NAME = 'Sheet1';
 
   function sheet() {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    return ss.getSheetByName(SHEET_NAME);
+    return SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
   }
 
-  function withCors(out) {
-    return out.setHeader('Access-Control-Allow-Origin','*');
+  function outputJSONP(data, callback) {
+    return ContentService
+      .createTextOutput(callback + '(' + JSON.stringify(data) + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
 
   function doGet(e) {
@@ -91,12 +101,10 @@
     if (e.parameter.action === 'write') {
       sh.appendRow([e.parameter.name || '', e.parameter.phone || '', new Date()]);
     }
-    const data = sh.getDataRange().getValues().slice(1)
-                  .map(r => ({name: r[0], phone: r[1]}));
-    return withCors(
-      ContentService.createTextOutput(JSON.stringify(data))
-                    .setMimeType(ContentService.MimeType.JSON)
-    );
+    const rows = sh.getDataRange().getValues().slice(1)
+                    .map(r => ({name:r[0], phone:r[1]}));
+    const cb = e.parameter.callback || 'renderNames';
+    return outputJSONP(rows, cb);
   }
   -->
 </body>
