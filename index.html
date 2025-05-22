@@ -147,6 +147,46 @@
       render(list);
     }
 
+    document.getElementById('attendForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const name  = fd.get('name').trim();
+    const phone = fd.get('phone').trim();
+    const list = await writeName(name, phone);
+
+    // ask to add to calendar
+    if (confirm("Would you like to add this event to your calendar?")) {
+      // build a simple ICS
+      const dtStartUTC = '20250725T180000Z'; // 25 Jul 2025 20:00 CEST
+      const dtEndUTC   = '20250726T040000Z'; // 26 Jul 2025 06:00 CEST
+      const icsLines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//YourDomain//AttendanceEvent//EN',
+        'BEGIN:VEVENT',
+        `UID:${Date.now()}@yourdomain.com`,
+        `DTSTAMP:${new Date().toISOString().replace(/[-:.]/g,'').slice(0,15)}Z`,
+        `DTSTART:${dtStartUTC}`,
+        `DTEND:${dtEndUTC}`,
+        'SUMMARY:Your event name',
+        'DESCRIPTION:Thanks for RSVPing!',
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ];
+      const blob = new Blob([icsLines.join('\r\n')], { type: 'text/calendar' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = 'attendance-event.ics';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    e.target.reset();
+  });
+
     function render(list) {
       document.getElementById('counter').textContent = list.length;
       document.getElementById('nameWall').textContent = list.map(o => o.name || 'Anonymous').join('\u00a0');
