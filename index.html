@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cyclus · 25 Jul 2025</title>
   <link rel="icon" href="favicon.ico" type="image/x-icon" />
-  
+
   <!--
     👉 Replace YOUR_IMAGE.jpg with the background you like.
-    👉 Replace SHEET_ENDPOINT with your Apps-Script web-app URL.
+    👉 Replace SHEET_ENDPOINT with your Apps Script web-app URL.
   -->
 
   <style>
@@ -16,7 +16,7 @@
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{height:100%;font-family:system-ui,sans-serif}
     body{
-      background:url("YOUR_IMAGE.jpg") center/cover no-repeat;
+      background:url("YOUR_IMAGE.jpg") center/cover no-repeat fixed;
       display:flex;align-items:center;justify-content:center;color:#222;
     }
 
@@ -56,9 +56,10 @@
       white-space:pre-wrap;word-break:break-word;max-width:calc(100% - 32px);
     }
 
-    /* ===== Form ===== */
+    /* ===== Form (now bottom-center) ===== */
     form{
-      position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+      position:fixed; /* keep it anchored even if page scrolls */
+      left:50%; bottom:5%; transform:translateX(-50%);
       width:90%;max-width:360px;display:flex;flex-direction:column;gap:12px;
       background:transparent;border:none;z-index:10;
     }
@@ -91,12 +92,12 @@
   <form id="attendForm" autocomplete="off">
     <input type="text" name="name" placeholder="Your name (optional)" />
     <input type="tel" name="phone" placeholder="Phone (optional)" />
-    <button type="submit">I Join</button>
+    <button type="submit">I attend</button>
   </form>
 
   <script>
     /* ========= CONFIG ========= */
-    const SHEET_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxWHCq6yHcqtt4TEeSXnxkjXtxdD-nakrSoSIe-nBwb8ugojQNYJuN98o8z3vacac0G/exec';
+    const SHEET_ENDPOINT='https://script.google.com/macros/s/AKfycbxWHCq6yHcqtt4TEeSXnxkjXtxdD-nakrSoSIe-nBwb8ugojQNYJuN98o8z3vacac0G/exec';
 
     /* ========= Utility: JSONP ========= */
     function loadJSONP(params){
@@ -111,73 +112,56 @@
     }
 
     /* ========= Fancy spinners ========= */
-    function createRing(parent){const d=document.createElement('div');d.className='spinner-ring';parent.appendChild(d);}  
-    function createDots(parent){const wrap=document.createElement('div');wrap.className='spinner-dots';for(let i=0;i<3;i++)wrap.appendChild(document.createElement('div'));parent.appendChild(wrap);}  
-    function createBars(parent){const wrap=document.createElement('div');wrap.className='spinner-bars';for(let i=0;i<5;i++)wrap.appendChild(document.createElement('div'));parent.appendChild(wrap);}  
-    const spinnerFns=[createRing,createDots,createBars];
-    function putRandomSpinner(el){el.innerHTML='';spinnerFns[Math.floor(Math.random()*spinnerFns.length)](el);}
+    function createRing(p){const d=document.createElement('div');d.className='spinner-ring';p.appendChild(d);}  
+    function createDots(p){const w=document.createElement('div');w.className='spinner-dots';for(let i=0;i<3;i++)w.appendChild(document.createElement('div'));p.appendChild(w);}  
+    function createBars(p){const w=document.createElement('div');w.className='spinner-bars';for(let i=0;i<5;i++)w.appendChild(document.createElement('div'));p.appendChild(w);}  
+    const spinners=[createRing,createDots,createBars];
+    function randomSpinner(el){el.innerHTML='';spinners[Math.floor(Math.random()*spinners.length)](el);}  
 
     /* ========= Initial loader ========= */
-    const loaderEl=document.getElementById('loader');
-    putRandomSpinner(loaderEl);
+    const loaderEl=document.getElementById('loader');randomSpinner(loaderEl);
 
     /* ========= Render helpers ========= */
     const counterEl=document.getElementById('counter');
     const wallEl=document.getElementById('nameWall');
-
     function render(list){
-      // de-duplicate names (case-insensitive)
       const seen=new Set();
       const unique=list.filter(o=>{const n=(o.name||'Anonymous').trim().toLowerCase();if(seen.has(n))return false;seen.add(n);return true;});
       wallEl.textContent=unique.map(o=>o.name||'Anonymous').join('\u00a0');
-      counterEl.textContent=unique.length;
-      counterEl.classList.add('visible');
+      counterEl.textContent=unique.length;counterEl.classList.add('visible');
     }
 
     /* ========= Read + write ========= */
-    async function fetchNames(){
-      try{const list=await loadJSONP({action:'read'});render(list);}finally{loaderEl.style.display='none';}}
-    async function writeName(name,phone){const list=await loadJSONP({action:'write',name,phone});render(list);return list;}
+    async function fetchNames(){try{const l=await loadJSONP({action:'read'});render(l);}finally{loaderEl.style.display='none';}}
+    async function writeName(name,phone){const l=await loadJSONP({action:'write',name,phone});render(l);return l;}
 
-    /* ========= Kick-off ========= */
     fetchNames();
 
     /* ========= Form submit ========= */
     const form=document.getElementById('attendForm');
     const submitOverlay=document.getElementById('submitOverlay');
-
     form.addEventListener('submit',async e=>{
       e.preventDefault();
       const fd=new FormData(form);
       const name=(fd.get('name')||'').trim();
       const phone=(fd.get('phone')||'').trim();
 
-      form.classList.add('pulsing');
-      putRandomSpinner(submitOverlay);
-      submitOverlay.style.display='flex';
+      form.classList.add('pulsing');randomSpinner(submitOverlay);submitOverlay.style.display='flex';
+      await writeName(name,phone);
+      form.classList.remove('pulsing');submitOverlay.style.display='none';
 
-      await writeName(name,phone); // wait for Sheets write
-
-      form.classList.remove('pulsing');
-      submitOverlay.style.display='none';
-
-      /* ---- Calendar prompt ---- */
       if(confirm('Add “Cyclus” to your calendar?')){
-        const dtStart='20250725T180000Z';
-        const dtEnd  ='20250726T040000Z';
+        const dtS='20250725T180000Z',dtE='20250726T040000Z';
         const ics=[
-          'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//YourDomain//AttendanceEvent//EN','BEGIN:VEVENT',
-          `UID:${Date.now()}@yourdomain.com`,
+          'BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Cyclus//RSVP//EN','BEGIN:VEVENT',
+          `UID:${Date.now()}@cyclus-rsvp`,
           `DTSTAMP:${new Date().toISOString().replace(/[-:.]/g,'').slice(0,15)}Z`,
-          `DTSTART:${dtStart}`,`DTEND:${dtEnd}`,
-          'SUMMARY:Cyclus','LOCATION:JH Tongeluk Ganshoren','DESCRIPTION:Thanks for RSVPing to Cyclus!',
-          'END:VEVENT','END:VCALENDAR'
+          `DTSTART:${dtS}`,`DTEND:${dtE}`,'SUMMARY:Cyclus','LOCATION:JH Tongeluk Ganshoren',
+          'DESCRIPTION:Thanks for RSVPing to Cyclus!','END:VEVENT','END:VCALENDAR'
         ].join('\r\n');
-        const blob=new Blob([ics],{type:'text/calendar'});
-        const url=URL.createObjectURL(blob);
+        const blob=new Blob([ics],{type:'text/calendar'});const url=URL.createObjectURL(blob);
         const a=document.createElement('a');a.href=url;a.download='cyclus-event.ics';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);
       }
-
       form.reset();
     });
   </script>
